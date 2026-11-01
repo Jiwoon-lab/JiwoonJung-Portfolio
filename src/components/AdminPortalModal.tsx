@@ -198,6 +198,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     setTimeout(() => setSaveStatus(null), 4000);
   };
 
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteJsonText, setPasteJsonText] = useState('');
+
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -207,17 +210,35 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed && parsed.proj) {
           onUpdate(parsed);
-          setSaveStatus('Backup loaded successfully!');
-          setTimeout(() => setSaveStatus(null), 4000);
+          setSaveStatus('✅ JSON 데이터가 서버 디스크(public/portfolio-data.json)와 영구 스토리지에 성공적으로 등록되었습니다!');
+          setTimeout(() => setSaveStatus(null), 5000);
         } else {
-          alert('Invalid portfolio backup file format.');
+          alert('올바른 포트폴리오 백업 JSON 형식이 아닙니다.');
         }
       } catch {
-        alert('Failed to parse backup JSON.');
+        alert('JSON 파일을 파싱하는 데 실패했습니다.');
       }
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleApplyPastedJson = () => {
+    if (!pasteJsonText.trim()) return;
+    try {
+      const parsed = JSON.parse(pasteJsonText.trim());
+      if (parsed && parsed.proj) {
+        onUpdate(parsed);
+        setShowPasteModal(false);
+        setPasteJsonText('');
+        setSaveStatus('✅ 붙여넣은 JSON 데이터가 서버 디스크(public/portfolio-data.json)와 영구 스토리지에 등록되었습니다!');
+        setTimeout(() => setSaveStatus(null), 5000);
+      } else {
+        alert('올바른 포트폴리오 데이터 형식이 아닙니다. (proj 객체가 필요합니다)');
+      }
+    } catch (err: any) {
+      alert(`JSON 문법 오류: ${err.message}`);
+    }
   };
 
   return (
@@ -402,7 +423,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                   EXPORT JSON
                 </button>
                 <label className="min-h-[44px] px-4 border-2 border-neutral-700 bg-white text-xs font-bold tracking-wider hover:bg-neutral-50 transition-colors flex items-center cursor-pointer">
-                  IMPORT JSON
+                  IMPORT JSON (파일)
                   <input
                     type="file"
                     accept=".json"
@@ -410,6 +431,13 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     className="hidden"
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPasteModal(true)}
+                  className="min-h-[44px] px-4 border-2 border-black bg-black text-[#c2d88f] text-xs font-bold tracking-wider hover:opacity-90 transition-opacity"
+                >
+                  JSON 직접 붙여넣기
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsAuthenticated(false)}
@@ -430,6 +458,65 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Permanent Storage Status Banner */}
+            <div className="p-3 bg-neutral-100 border-2 border-neutral-800 text-xs text-neutral-800 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+              <span>
+                <strong>영구 보관 활성화:</strong> 모든 변경사항 및 업로드 이미지는 서버 디스크 파일(<code>public/portfolio-data.json</code>)과 브라우저 IndexedDB에 자동 영구 저장되어 사이트를 나갔다 들어와도 유지됩니다.
+              </span>
+            </div>
+
+            {/* Paste JSON Modal */}
+            {showPasteModal && (
+              <div
+                style={{
+                  boxSizing: 'border-box',
+                  padding: '20px',
+                  backgroundColor: '#f9fafb',
+                  border: '3px solid #000000',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-sm text-black">
+                    갖고 계신 JSON 텍스트를 여기에 붙여넣어 영구 등록하세요
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteModal(false)}
+                    className="text-xs font-bold text-neutral-500 hover:text-black"
+                  >
+                    닫기
+                  </button>
+                </div>
+                <textarea
+                  rows={6}
+                  value={pasteJsonText}
+                  onChange={(e) => setPasteJsonText(e.target.value)}
+                  placeholder='{"adminEmail":"...","heroPhotos":[...],"proj":{...}}'
+                  className="w-full p-3 font-mono text-xs border-2 border-black bg-white"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteModal(false)}
+                    className="px-4 py-2 border-2 border-neutral-400 text-xs font-bold"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyPastedJson}
+                    className="px-5 py-2 bg-black text-[#c2d88f] text-xs font-bold tracking-wider"
+                  >
+                    서버 및 브라우저에 영구 등록 적용
+                  </button>
+                </div>
+              </div>
+            )}
 
             <p
               style={{

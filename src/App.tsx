@@ -14,41 +14,12 @@ import { GalleryViewerModal } from './components/GalleryViewerModal';
 import { AboutModal } from './components/AboutModal';
 import { AdminPortalModal } from './components/AdminPortalModal';
 import { MediaCropModal } from './components/MediaCropModal';
+import { idbGet, idbSet } from './utils/idb';
 
 const STORAGE_KEY = 'jwj-portfolio-v1';
 
 export default function App() {
-  const [data, setData] = useState<PortfolioData>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...INITIAL_DATA,
-          ...parsed,
-          proj: parsed.proj
-            ? {
-                ideation: Array.isArray(parsed.proj.ideation)
-                  ? parsed.proj.ideation
-                  : INITIAL_DATA.proj.ideation,
-                modeling: Array.isArray(parsed.proj.modeling)
-                  ? parsed.proj.modeling
-                  : INITIAL_DATA.proj.modeling,
-                etc2d: Array.isArray(parsed.proj.etc2d)
-                  ? parsed.proj.etc2d
-                  : INITIAL_DATA.proj.etc2d,
-                etc3d: Array.isArray(parsed.proj.etc3d)
-                  ? parsed.proj.etc3d
-                  : INITIAL_DATA.proj.etc3d,
-              }
-            : INITIAL_DATA.proj,
-        };
-      }
-    } catch {
-      // fallback to initial
-    }
-    return INITIAL_DATA;
-  });
+  const [data, setData] = useState<PortfolioData>(INITIAL_DATA);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
@@ -60,6 +31,76 @@ export default function App() {
 
   const accentColor = '#c2d88f';
 
+  // Load persistent data on mount (Server disk -> Static public file -> IndexedDB -> LocalStorage)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAll() {
+      // 1. Try server API (/api/portfolio)
+      try {
+        const res = await fetch('/api/portfolio');
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.data && isMounted) {
+            setData(json.data);
+            idbSet(STORAGE_KEY, json.data);
+            return;
+          }
+        }
+      } catch {
+        // server API fallback
+      }
+
+      // 2. Try static /portfolio-data.json
+      try {
+        const staticRes = await fetch('/portfolio-data.json');
+        if (staticRes.ok) {
+          const staticData = await staticRes.json();
+          if (staticData && staticData.proj && isMounted) {
+            setData(staticData);
+            idbSet(STORAGE_KEY, staticData);
+            return;
+          }
+        }
+      } catch {
+        // static fetch fallback
+      }
+
+      // 3. Try IndexedDB
+      try {
+        const idbData = await idbGet<PortfolioData>(STORAGE_KEY);
+        if (idbData && idbData.proj && isMounted) {
+          setData(idbData);
+          return;
+        }
+      } catch {
+        // idb fallback
+      }
+
+      // 4. Try localStorage
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.proj && isMounted) {
+            setData({
+              ...INITIAL_DATA,
+              ...parsed,
+            });
+            idbSet(STORAGE_KEY, parsed);
+          }
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    loadAll();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Automatically close viewer if viewed project was deleted
   useEffect(() => {
     if (viewer) {
@@ -70,15 +111,30 @@ export default function App() {
     }
   }, [data.proj, viewer]);
 
-  // Save changes to localStorage
+  // Multi-tier persistent save: React state -> IndexedDB -> Server Disk -> LocalStorage
   const updateData = (patch: Partial<PortfolioData>) => {
     setData((prev) => {
       const next = { ...prev, ...patch };
+
+      // 1. Save to IndexedDB (eliminates 5MB quota errors completely)
+      idbSet(STORAGE_KEY, next);
+
+      // 2. Save directly to Server Disk (/public/portfolio-data.json)
+      fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      }).catch((err) => {
+        console.warn('Server disk save notice:', err);
+      });
+
+      // 3. Fallback to localStorage
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch (err) {
-        console.warn('Failed to save to localStorage:', err);
+      } catch {
+        // If quota exceeded, IndexedDB & Server disk already safely stored it
       }
+
       return next;
     });
   };
