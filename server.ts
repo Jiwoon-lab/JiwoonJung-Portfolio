@@ -21,13 +21,18 @@ async function startServer() {
   app.get('/api/portfolio', (req, res) => {
     try {
       if (fs.existsSync(dataFilePath)) {
-        const raw = fs.readFileSync(dataFilePath, 'utf-8');
-        return res.json({ success: true, data: JSON.parse(raw) });
+        const raw = fs.readFileSync(dataFilePath, 'utf-8').trim();
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            return res.json({ success: true, data: parsed });
+          }
+        }
       }
       return res.json({ success: false, data: null });
     } catch (err: any) {
-      console.error('Error reading portfolio-data.json:', err);
-      return res.status(500).json({ success: false, error: err.message });
+      console.warn('Notice reading portfolio-data.json, returning null fallback:', err.message);
+      return res.json({ success: false, data: null });
     }
   });
 
