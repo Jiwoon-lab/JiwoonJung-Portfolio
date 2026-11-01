@@ -1,0 +1,6 @@
+{
+  "name": "Ji Woon Jung Portfolio",
+  "description": "Character Ideation, Modeling, and Digital Art Portfolio with interactive 3D carousels, full gallery viewer, and comprehensive admin media management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

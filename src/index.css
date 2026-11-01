@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --font-tektur: 'Chakra Petch', 'Rajdhani', sans-serif;
+  --font-montserrat: 'Montserrat', system-ui, sans-serif;
+  --font-noto: 'Noto Sans KR', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: 'Montserrat', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  overflow-x: hidden;
+}
+
+.font-tektur {
+  font-family: 'Chakra Petch', 'Rajdhani', sans-serif !important;
+}
+
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #a8a8a8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #787878;
+}
